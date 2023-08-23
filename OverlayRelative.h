@@ -188,6 +188,7 @@ class OverlayRelative : public Overlay
             const float4 carNumberBgCol     = g_cfg.getFloat4( m_name, "car_number_background_col", float4(1,1,1,0.9f) );
             const float4 carNumberTextCol   = g_cfg.getFloat4( m_name, "car_number_text_col", float4(0,0,0,0.9f) );
             const float4 pitCol             = g_cfg.getFloat4( m_name, "pit_col", float4(0.94f,0.8f,0.13f,1) );
+            const float4 headerCol = g_cfg.getFloat4(m_name, "header_col", float4(0.7f, 0.7f, 0.7f, 0.9f));
             const bool   minimapEnabled     = g_cfg.getBool( m_name, "minimap_enabled", true );
             const bool   minimapIsRelative  = g_cfg.getBool( m_name, "minimap_is_relative", true );
             const float4 minimapBgCol       = g_cfg.getFloat4( m_name, "minimap_background_col", float4(0,0,0,0.13f) );
@@ -197,9 +198,11 @@ class OverlayRelative : public Overlay
             const int    entriesAbove       = int( (yself - lineHeight/2 - listingAreaTop) / lineHeight );
 
             float y = yself - entriesAbove * lineHeight;
+            const float ybottom = m_height - lineHeight * 1.5f;
 
             const float xoff = 10.0f;
             m_columns.layout( (float)m_width - 20 );
+            wchar_t s[512];
 
             m_renderTarget->BeginDraw();
             for( int cnt=0, i=selfCarInfoIdx-entriesAbove; i<(int)relatives.size() && y<=listingAreaBot-lineHeight/2; ++i, y+=lineHeight, ++cnt )
@@ -342,6 +345,20 @@ class OverlayRelative : public Overlay
                     m_brush->SetColor( iratingTextCol );
                     m_text.render( m_renderTarget.Get(), s, m_textFormatSmall.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );
                 }
+            }
+
+            // Footer
+            {
+                
+                int lapcount = ir_CarIdxLap.getInt(ir_session.driverCarIdx);
+                int totallaps = ir_SessionLapsTotal.getInt();
+
+                m_brush->SetColor(float4(1, 1, 1, 0.4f));
+                m_renderTarget->DrawLine(float2(0, ybottom), float2((float)m_width, ybottom), m_brush.Get());
+                swprintf(s, _countof(s), L"SoF: %d      Lap: %d/%d", ir_session.sof, lapcount, totallaps);
+                y = m_height - (m_height - ybottom) / 2;
+                m_brush->SetColor(headerCol);
+                m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff, (float)m_width - 2 * xoff, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER);
             }
 
             // Minimap
