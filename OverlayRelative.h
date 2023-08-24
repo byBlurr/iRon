@@ -355,10 +355,10 @@ class OverlayRelative : public Overlay
             }
 
             // Footer
-            if (timeRemainingEnabled || lapsRemainingEnabled || sofEnabled || trackTempEnabled || ambientTempEnabled)
+            bool   sessionIsTimeLimited = ir_SessionLapsTotal.getInt() == 32767 && ir_SessionTimeRemain.getDouble() < 48.0 * 3600.0;  // Todo: I copied this from DDU, so should probably be put into its own helper method
+            if ((timeRemainingEnabled && sessionIsTimeLimited) || (lapsRemainingEnabled && !sessionIsTimeLimited) || sofEnabled || trackTempEnabled || ambientTempEnabled)
             {
                 // Session Info
-                bool   sessionIsTimeLimited = ir_SessionLapsTotal.getInt() == 32767 && ir_SessionTimeRemain.getDouble() < 48.0 * 3600.0;  // Todo: I copied this from DDU, so should probably be put into its own helper method
                 m_brush->SetColor(float4(1, 1, 1, 0.4f));
                 m_renderTarget->DrawLine(float2(0, ybottom), float2((float)m_width, ybottom), m_brush.Get());
                 swprintf(s, _countof(s), L"");
