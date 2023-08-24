@@ -197,6 +197,13 @@ class OverlayRelative : public Overlay
             const float  yself              = listingAreaTop + (listingAreaBot-listingAreaTop) / 2.0f;
             const int    entriesAbove       = int( (yself - lineHeight/2 - listingAreaTop) / lineHeight );
 
+            //footer
+            const bool timeRemainingEnabled = g_cfg.getBool(m_name, "show_time_remaining", true);
+            const bool lapsRemainingEnabled = g_cfg.getBool(m_name, "show_laps_remaining", true);
+            const bool trackTempEnabled = g_cfg.getBool(m_name, "show_track_temp", false);
+            const bool ambientTempEnabled = g_cfg.getBool(m_name, "show_ambient_temp", false);
+            const bool sofEnabled = g_cfg.getBool(m_name, "show_strength_of_field", true);
+
             float y = yself - entriesAbove * lineHeight;
             const float ybottom = m_height - lineHeight * 1.5f;
 
@@ -348,14 +355,68 @@ class OverlayRelative : public Overlay
             }
 
             // Footer
+            if (timeRemainingEnabled || lapsRemainingEnabled || sofEnabled || trackTempEnabled || ambientTempEnabled)
             {
-                
-                int lapcount = ir_CarIdxLap.getInt(ir_session.driverCarIdx);
-                int totallaps = ir_SessionLapsTotal.getInt();
-
+                // Session Info
+                bool   sessionIsTimeLimited = ir_SessionLapsTotal.getInt() == 32767 && ir_SessionTimeRemain.getDouble() < 48.0 * 3600.0;  // Todo: I copied this from DDU, so should probably be put into its own helper method
                 m_brush->SetColor(float4(1, 1, 1, 0.4f));
                 m_renderTarget->DrawLine(float2(0, ybottom), float2((float)m_width, ybottom), m_brush.Get());
-                swprintf(s, _countof(s), L"SoF: %d      Lap: %d/%d", ir_session.sof, lapcount, totallaps);
+                swprintf(s, _countof(s), L"");
+
+                if (timeRemainingEnabled && sessionIsTimeLimited)
+                {
+                    // Todo: Following code also taken from DDU, check above comment
+                    double remainingSessionTime = sessionIsTimeLimited ? ir_SessionTimeRemain.getDouble() : -1;
+                    const double sessionTime = remainingSessionTime >= 0 ? remainingSessionTime : ir_SessionTime.getDouble();
+
+                    const int    hours = int(sessionTime / 3600.0);
+                    const int    mins = int(sessionTime / 60.0) % 60;
+                    const int    secs = (int)fmod(sessionTime, 60.0);
+                    if (hours)
+                        swprintf(s, _countof(s), L"%d:%02d:%02d", hours, mins, secs);
+                    else
+                        swprintf(s, _countof(s), L"%02d:%02d", mins, secs);
+                }
+
+                if (lapsRemainingEnabled && !sessionIsTimeLimited)
+                {
+                    int lapcount = ir_CarIdxLap.getInt(ir_session.driverCarIdx);
+                    int totallaps = ir_SessionLapsTotal.getInt();
+                    swprintf(s, _countof(s), L"%s  |  Lap %d/%d", s, lapcount, totallaps);
+                }
+
+                if (sofEnabled)
+                {
+                    int sof = ir_session.sof;
+                    swprintf(s, _countof(s), L"%s  |  SoF %d", s, sof);
+                }
+
+                // Temps
+                if (trackTempEnabled || ambientTempEnabled)
+                {
+                    float trackTemp = ir_TrackTempCrew.getFloat();
+                    float airTemp = ir_AirTemp.getFloat();
+                    char  tempUnit = 'C';
+                    if (ir_DisplayUnits.getInt() == 0) {
+                        trackTemp = celsiusToFahrenheit(trackTemp);
+                        airTemp = celsiusToFahrenheit(airTemp);
+                        tempUnit = 'F';
+                    }
+
+                    if (trackTempEnabled)
+                    {
+                        swprintf(s, _countof(s), L"%s  |  Track Temp: %.1f°%c", s, trackTemp, tempUnit);
+                    }
+                    if (ambientTempEnabled) 
+                    {
+                        swprintf(s, _countof(s), L"%s  |  Air Temp : % .1f° % c", s, airTemp, tempUnit);
+                    }
+                }
+
+
+                
+                //swprintf(s, _countof(s), L"SoF: %d      Lap: %d/%d", ir_session.sof, lapcount, totallaps);
+                swprintf(s, _countof(s), L"%s  |", s);
                 y = m_height - (m_height - ybottom) / 2;
                 m_brush->SetColor(headerCol);
                 m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff, (float)m_width - 2 * xoff, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER);
